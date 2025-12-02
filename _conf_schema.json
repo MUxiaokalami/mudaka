@@ -1,1 +1,87 @@
-
+{
+  "storage_scope": {
+    "description": "数据统计作用域（group=按群，user=按用户，global=全局）",
+    "type": "string",
+    "options": ["group", "user", "global"],
+    "default": "group"
+  },
+  
+  "base_lottery_chances": {
+    "description": "每次签到获得的基础抽奖机会",
+    "type": "int",
+    "default": 1
+  },
+  
+  "enable_time_limit": {
+    "description": "是否启用签到时间限制",
+    "type": "bool",
+    "default": false
+  },
+  
+  "checkin_start_time": {
+    "description": "签到开始时间（格式：HH:MM，24小时制）",
+    "type": "string",
+    "default": "08:00"
+  },
+  
+  "checkin_end_time": {
+    "description": "签到结束时间（格式：HH:MM，24小时制）",
+    "type": "string",
+    "default": "22:00"
+  },
+  
+  "message_separator": {
+    "description": "分隔线",
+    "type": "string",
+    "default": "--------"
+  },
+  
+  "signature_messages": {
+    "description": "自定义签名消息列表（随机选择一条显示）",
+    "type": "list",
+    "default": [
+      "奇迹世界因你而精彩！",
+      "坚持签到，福利不断！",
+      "勇者大陆欢迎你的到来！",
+      "每日签到，战力飙升！",
+      "奇迹相伴，快乐相随！"
+    ]
+  },
+  
+  "use_emoji": {
+    "description": "是否使用emoji表情",
+    "type": "bool",
+    "default": true
+  },
+  
+  "lottery_config_file": {
+    "description": "抽奖物品配置文件路径",
+    "type": "string",
+    "default": "data/plugin-data/astrbot_plugin_draw_checkin/lottery_items.json"
+  },
+  
+  "group_config_file": {
+    "description": "群组配置存储文件路径",
+    "type": "string",
+    "default": "data/plugin-data/astrbot_plugin_draw_checkin/group_configs.json"
+  },
+  
+  "enable_group_config": {
+    "description": "是否启用群组独立配置功能",
+    "type": "bool",
+    "default": true
+  },
+  
+  "default_db_config": {
+    "description": "默认数据库配置（当群组未独立配置时使用，请勿在此填写真实密码）",
+    "type": "dict",
+    "default": {
+      "db_server": "127.0.0.1",
+      "db_port": "1433",
+      "db_database": "MuOnline",
+      "db_username": "your_username",
+      "db_password": "your_password_here",
+      "db_driver": "FreeTDS"
+    }
+  }
+}
