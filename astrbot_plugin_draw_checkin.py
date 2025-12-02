@@ -18,15 +18,14 @@ os.makedirs(DATA_DIR, exist_ok=True)
 DATA_FILE = os.path.join(DATA_DIR, "checkin_data.json")
 BIND_FILE = os.path.join(DATA_DIR, "account_bind.json")
 LOTTERY_ITEMS_FILE = os.path.join(DATA_DIR, "lottery_items.json")  # 抽奖物品配置文件
-GROUP_CONFIG_FILE = os.path.join(DATA_DIR, "group_configs.json")  # 群组独立配置
+GROUP_CONFIG_FILE = os.path.join(DATA_DIR, "group_config.json")  # 群组独立配置
 
 
-def _load_group_configs(cfg: Dict[str, Any]) -> Dict[str, Any]:
+def _load_group_config() -> Dict[str, Any]:
     """加载群组配置"""
-    config_file = cfg.get("group_config_file", GROUP_CONFIG_FILE)
     try:
-        if os.path.exists(config_file):
-            with open(config_file, "r", encoding="utf-8") as f:
+        if os.path.exists(GROUP_CONFIG_FILE):
+            with open(GROUP_CONFIG_FILE, "r", encoding="utf-8") as f:
                 return json.load(f)
         return {}
     except Exception as e:
@@ -34,23 +33,21 @@ def _load_group_configs(cfg: Dict[str, Any]) -> Dict[str, Any]:
         return {}
 
 
-def _save_group_configs(cfg: Dict[str, Any], config: Dict[str, Any]) -> None:
+def _save_group_config(config: Dict[str, Any]) -> None:
     """保存群组配置"""
-    config_file = cfg.get("group_config_file", GROUP_CONFIG_FILE)
     try:
-        os.makedirs(os.path.dirname(config_file), exist_ok=True)
-        with open(config_file, "w", encoding="utf-8") as f:
+        os.makedirs(os.path.dirname(GROUP_CONFIG_FILE), exist_ok=True)
+        with open(GROUP_CONFIG_FILE, "w", encoding="utf-8") as f:
             json.dump(config, f, ensure_ascii=False, indent=2)
     except Exception as e:
         logger.error(f"保存群组配置失败: {e}")
 
 
-def _load_lottery_items(cfg: Dict[str, Any]) -> Dict[str, Any]:
+def _load_lottery_items() -> Dict[str, Any]:
     """加载抽奖物品配置"""
-    config_file = cfg.get("lottery_config_file", LOTTERY_ITEMS_FILE)
     try:
-        if os.path.exists(config_file):
-            with open(config_file, "r", encoding="utf-8") as f:
+        if os.path.exists(LOTTERY_ITEMS_FILE):
+            with open(LOTTERY_ITEMS_FILE, "r", encoding="utf-8") as f:
                 return json.load(f)
         
         # 默认抽奖配置
@@ -63,8 +60,7 @@ def _load_lottery_items(cfg: Dict[str, Any]) -> Dict[str, Any]:
                     "min_amount": 10,
                     "max_amount": 100,
                     "probability": 0.4,
-                    "direct_to_account": True,
-                    "description": "游戏积分"
+                    "direct_to_account": True
                 },
                 {
                     "id": 2,
@@ -73,8 +69,7 @@ def _load_lottery_items(cfg: Dict[str, Any]) -> Dict[str, Any]:
                     "min_amount": 5,
                     "max_amount": 50,
                     "probability": 0.4,
-                    "direct_to_account": True,
-                    "description": "游戏元宝"
+                    "direct_to_account": True
                 },
                 {
                     "id": 3,
@@ -83,7 +78,7 @@ def _load_lottery_items(cfg: Dict[str, Any]) -> Dict[str, Any]:
                     "item_code": "bless",
                     "min_amount": 1,
                     "max_amount": 3,
-                    "probability": 0.08,
+                    "probability": 0.1,
                     "direct_to_account": False,
                     "description": "用于装备强化"
                 },
@@ -94,7 +89,7 @@ def _load_lottery_items(cfg: Dict[str, Any]) -> Dict[str, Any]:
                     "item_code": "soul",
                     "min_amount": 1,
                     "max_amount": 2,
-                    "probability": 0.06,
+                    "probability": 0.05,
                     "direct_to_account": False,
                     "description": "用于装备强化"
                 },
@@ -116,7 +111,7 @@ def _load_lottery_items(cfg: Dict[str, Any]) -> Dict[str, Any]:
                     "item_code": "create",
                     "min_amount": 1,
                     "max_amount": 1,
-                    "probability": 0.02,
+                    "probability": 0.01,
                     "direct_to_account": False,
                     "description": "用于装备合成"
                 },
@@ -149,13 +144,11 @@ def _load_lottery_items(cfg: Dict[str, Any]) -> Dict[str, Any]:
                     "probability": 0.03,
                     "description": "获得额外抽奖机会"
                 }
-            ],
-            "version": "1.0.0"
+            ]
         }
         
         # 保存默认配置
-        os.makedirs(os.path.dirname(config_file), exist_ok=True)
-        with open(config_file, "w", encoding="utf-8") as f:
+        with open(LOTTERY_ITEMS_FILE, "w", encoding="utf-8") as f:
             json.dump(default_items, f, ensure_ascii=False, indent=2)
         
         return default_items
@@ -166,32 +159,28 @@ def _load_lottery_items(cfg: Dict[str, Any]) -> Dict[str, Any]:
 
 def _get_group_db_config(group_id: str, cfg: Dict[str, Any]) -> Dict[str, Any]:
     """获取群组特定的数据库配置"""
-    enable_group_config = cfg.get("enable_group_config", True)
+    group_configs = _load_group_config()
     
-    if enable_group_config:
-        group_configs = _load_group_configs(cfg)
-        
-        if group_id in group_configs and "db_config" in group_configs[group_id]:
-            # 使用群组特定的配置
-            group_db_cfg = group_configs[group_id]["db_config"]
-            return {
-                "server": group_db_cfg.get("db_server", "127.0.0.1"),
-                "port": group_db_cfg.get("db_port", "1433"),
-                "database": group_db_cfg.get("db_database", "MuOnline"),
-                "username": group_db_cfg.get("db_username", "your_username"),
-                "password": group_db_cfg.get("db_password", ""),
-                "driver": group_db_cfg.get("db_driver", "FreeTDS")
-            }
+    if group_id in group_configs and "db_config" in group_configs[group_id]:
+        # 使用群组特定的配置
+        group_db_cfg = group_configs[group_id]["db_config"]
+        return {
+            "server": group_db_cfg.get("db_server", cfg.get("db_server", "202.189.8.117")),
+            "port": group_db_cfg.get("db_port", cfg.get("db_port", "1433")),
+            "database": group_db_cfg.get("db_database", cfg.get("db_database", "MuOnline")),
+            "username": group_db_cfg.get("db_username", cfg.get("db_username", "sa")),
+            "password": group_db_cfg.get("db_password", cfg.get("db_password", "bvT9527zzvipFEG2ic4R0#b")),
+            "driver": group_db_cfg.get("db_driver", cfg.get("db_driver", "FreeTDS"))
+        }
     
-    # 使用默认配置（管理员需要在WebUI中配置）
-    default_config = cfg.get("default_db_config", {})
+    # 使用全局配置
     return {
-        "server": default_config.get("db_server", "127.0.0.1"),
-        "port": default_config.get("db_port", "1433"),
-        "database": default_config.get("db_database", "MuOnline"),
-        "username": default_config.get("db_username", "your_username"),
-        "password": default_config.get("db_password", ""),
-        "driver": default_config.get("db_driver", "FreeTDS")
+        "server": cfg.get("db_server", "202.189.8.117"),
+        "port": cfg.get("db_port", "1433"),
+        "database": cfg.get("db_database", "MuOnline"),
+        "username": cfg.get("db_username", "sa"),
+        "password": cfg.get("db_password", "bvT9527zzvipFEG2ic4R0#b"),
+        "driver": cfg.get("db_driver", "FreeTDS")
     }
 
 
@@ -199,12 +188,6 @@ def _get_db_connection(group_id: str, cfg: Dict[str, Any]):
     """获取数据库连接（支持群组独立配置）"""
     try:
         db_config = _get_group_db_config(group_id, cfg)
-        
-        # 检查密码是否配置
-        if not db_config["password"] or db_config["password"] == "your_password_here":
-            logger.error(f"群组 {group_id} 数据库密码未配置")
-            return None
-            
         connection_string = (
             f"DRIVER={db_config['driver']};"
             f"SERVER={db_config['server']},{db_config['port']};"
@@ -226,7 +209,7 @@ def _load_data() -> Dict[str, Any]:
                 return json.load(f)
         return {}
     except Exception as e:
-        logger.error(f"加载签到数据失败: {e}")
+        logger.error(f"加载打卡数据失败: {e}")
         return {}
 
 
@@ -236,7 +219,7 @@ def _save_data(data: Dict[str, Any]) -> None:
         with open(DATA_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
     except Exception as e:
-        logger.error(f"保存签到数据失败: {e}")
+        logger.error(f"保存打卡数据失败: {e}")
 
 
 def _load_bind_data() -> Dict[str, Any]:
@@ -294,9 +277,9 @@ def _default_user(user_id: str, username: str) -> Dict[str, Any]:
         "total_days": 0,
         "consecutive_days": 0,
         "last_checkin": "",
-        "lottery_chances": 0,
-        "lottery_history": [],
-        "pending_items": []
+        "lottery_chances": 0,  # 抽奖机会
+        "lottery_history": [],  # 抽奖历史
+        "pending_items": []  # 待兑换物品
     }
 
 
@@ -325,8 +308,7 @@ def _get_game_account_info(group_id: str, cfg: Dict[str, Any], account_name: str
         logger.error(f"查询游戏账号失败: {e}")
         return None
     finally:
-        if conn:
-            conn.close()
+        conn.close()
 
 
 def _update_game_account_assets(group_id: str, cfg: Dict[str, Any], account_name: str, points_change: int = 0, ingots_change: int = 0):
@@ -360,12 +342,10 @@ def _update_game_account_assets(group_id: str, cfg: Dict[str, Any], account_name
         
     except Exception as e:
         logger.error(f"更新游戏账号资产失败: {e}")
-        if conn:
-            conn.rollback()
+        conn.rollback()
         return False
     finally:
-        if conn:
-            conn.close()
+        conn.close()
 
 
 def _get_user_game_account(bind_data: Dict[str, Any], user_id: str) -> str:
@@ -377,9 +357,9 @@ def _get_random_signature(cfg: Dict[str, Any]) -> str:
     """获取随机签名"""
     signature_messages = cfg.get("signature_messages", [
         "奇迹世界因你而精彩！",
-        "坚持签到，福利不断！",
+        "坚持打卡，福利不断！",
         "勇者大陆欢迎你的到来！",
-        "每日签到，战力飙升！",
+        "每日打卡，战力飙升！",
         "奇迹相伴，快乐相随！"
     ])
     return random.choice(signature_messages)
@@ -401,7 +381,7 @@ def _format_message(cfg: Dict[str, Any], title: str, content_lines: list) -> str
     
     emoji_map = {
         "✨": "✨",
-        "签到信息": "📊 签到信息",
+        "打卡信息": "📊 打卡信息",
         "绑定信息": "🔗 绑定信息",
         "抽奖信息": "🎯 抽奖信息",
         "游戏账号信息": "🎮 游戏账号信息"
@@ -426,16 +406,16 @@ def _format_message(cfg: Dict[str, Any], title: str, content_lines: list) -> str
 
 
 def _is_checkin_time_allowed(cfg: Dict[str, Any]) -> Tuple[bool, str]:
-    """检查当前时间是否在允许的签到时间内"""
+    """检查当前时间是否在允许的打卡时间内"""
     try:
         now = datetime.datetime.now()
         current_hour = now.hour
         current_minute = now.minute
         current_time_minutes = current_hour * 60 + current_minute
         
-        start_time_str = cfg.get("checkin_start_time", "08:00")
-        end_time_str = cfg.get("checkin_end_time", "22:00")
-        enable_time_limit = cfg.get("enable_time_limit", False)
+        start_time_str = cfg.get("checkin_start_time", "00:00")
+        end_time_str = cfg.get("checkin_end_time", "23:59")
+        enable_time_limit = cfg.get("enable_checkin_time_limit", False)
         
         if not enable_time_limit:
             return True, ""
@@ -451,37 +431,33 @@ def _is_checkin_time_allowed(cfg: Dict[str, Any]) -> Tuple[bool, str]:
         else:
             start_display = f"{start_hour:02d}:{start_minute:02d}"
             end_display = f"{end_hour:02d}:{end_minute:02d}"
-            return False, f"当前时间不在签到时间内\n签到时间：{start_display} - {end_display}"
+            return False, f"当前时间不在打卡时间内\n打卡时间：{start_display} - {end_display}"
             
     except Exception as e:
-        logger.error(f"检查签到时间失败: {e}")
+        logger.error(f"检查打卡时间失败: {e}")
         return True, ""
 
 
-def _perform_lottery(group_id: str, cfg: Dict[str, Any], user_id: str, game_account: str) -> Tuple[Dict[str, Any], str, int]:
+def _perform_lottery(group_id: str, cfg: Dict[str, Any], user_id: str, game_account: str) -> Tuple[Dict[str, Any], str]:
     """执行抽奖
-    返回: (抽奖结果, 消息, 额外机会)
+    返回: (抽奖结果, 消息)
     """
-    lottery_config = _load_lottery_items(cfg)
+    lottery_config = _load_lottery_items()
     items = lottery_config.get("items", [])
     special_rewards = lottery_config.get("special_rewards", [])
     
     if not items:
-        return {}, "❌ 抽奖配置错误，请联系管理员", 0
+        return {}, "❌ 抽奖配置错误，请联系管理员"
     
     # 计算总概率
     total_prob = sum(item["probability"] for item in items)
     total_special_prob = sum(reward["probability"] for reward in special_rewards)
-    total_all_prob = total_prob + total_special_prob
-    
-    if total_all_prob <= 0:
-        return {}, "❌ 抽奖配置错误，概率总和为0", 0
     
     # 抽奖
-    roll = random.random() * total_all_prob
+    roll = random.random() * (total_prob + total_special_prob)
     
     result = {}
-    message = ""
+    message_lines = []
     extra_chances = 0
     
     if roll <= total_prob:
@@ -503,7 +479,7 @@ def _perform_lottery(group_id: str, cfg: Dict[str, Any], user_id: str, game_acco
                 break
     
     if not result:
-        return {}, "❌ 抽奖失败，请稍后重试", 0
+        return {}, "❌ 抽奖失败，请稍后重试"
     
     # 处理结果
     result_type = result.get("type")
@@ -512,42 +488,44 @@ def _perform_lottery(group_id: str, cfg: Dict[str, Any], user_id: str, game_acco
         amount = random.randint(result["min_amount"], result["max_amount"])
         if _update_game_account_assets(group_id, cfg, game_account, points_change=amount):
             result["actual_amount"] = amount
-            message = f"🎉 恭喜！获得 {amount} 积分"
+            message_lines.append(f"🎉 恭喜！获得 {amount} 积分")
         else:
-            return {}, "❌ 发放积分失败，请联系管理员", 0
+            return {}, "❌ 发放积分失败，请联系管理员"
     
     elif result_type == "ingots":
         amount = random.randint(result["min_amount"], result["max_amount"])
         if _update_game_account_assets(group_id, cfg, game_account, ingots_change=amount):
             result["actual_amount"] = amount
-            message = f"🎉 恭喜！获得 {amount} 元宝"
+            message_lines.append(f"🎉 恭喜！获得 {amount} 元宝")
         else:
-            return {}, "❌ 发放元宝失败，请联系管理员", 0
+            return {}, "❌ 发放元宝失败，请联系管理员"
     
     elif result_type == "item":
         amount = random.randint(result["min_amount"], result["max_amount"])
         result["actual_amount"] = amount
-        message = f"🎁 恭喜！获得 {result['name']} × {amount}"
+        message_lines.append(f"🎁 恭喜！获得 {result['name']} × {amount}")
+        message_lines.append(f"💡 请私聊GM兑换物品")
     
     elif result_type == "multiplier":
         multiplier = result.get("multiplier", 2.0)
-        message = f"✨ 获得特殊奖励：{result['name']}"
+        message_lines.append(f"✨ 获得特殊奖励：{result['name']}")
+        # 实际使用时需要结合下一次抽奖
         result["multiplier"] = multiplier
     
     elif result_type == "extra_chance":
         extra_chances = result.get("extra_chances", 1)
-        message = f"🎊 获得特殊奖励：{result['name']}"
+        message_lines.append(f"🎊 获得特殊奖励：{result['name']}")
         result["extra_chances"] = extra_chances
     
-    # 记录抽奖时间
+    # 记录抽奖历史
     result["timestamp"] = datetime.datetime.now().isoformat()
     result["user_id"] = user_id
     
-    return result, message, extra_chances
+    return result, "\n".join(message_lines), extra_chances
 
 
 def _update_consecutive_days(info: Dict[str, Any], today: datetime.date) -> None:
-    """更新连续签到天数"""
+    """更新连续打卡天数"""
     last_checkin = info.get("last_checkin")
     
     if not last_checkin:
@@ -568,7 +546,7 @@ def _update_consecutive_days(info: Dict[str, Any], today: datetime.date) -> None
         info["consecutive_days"] = 1
 
 
-@register("astrbot_plugin_draw_checkin", "小卡拉米", "抽奖签到插件", "2.0.0")
+@register("astrbot_plugin_draw_checkin", "小卡拉米", "抽奖打卡插件", "2.0.0")
 class DrawCheckinPlugin(Star):
     def __init__(self, context: Context, config=None):
         super().__init__(context)
@@ -587,14 +565,7 @@ class DrawCheckinPlugin(Star):
 
     def _get_group_id(self, event: AstrMessageEvent) -> str:
         """获取群组ID"""
-        group_id = event.get_group_id()
-        if not group_id:
-            # 尝试从会话ID获取
-            session_id = event.get_session_id()
-            if session_id and session_id.isdigit():
-                return session_id
-            return "default"
-        return str(group_id)
+        return event.get_group_id() or "default"
 
     def _is_group_admin(self, event: AstrMessageEvent) -> bool:
         """检查用户是否为群管理员或群主"""
@@ -627,21 +598,8 @@ class DrawCheckinPlugin(Star):
         info["username"] = username
         return bucket, info
 
-    def _test_database_connection(self, group_id: str, cfg: Dict[str, Any]) -> bool:
-        """测试数据库连接"""
-        try:
-            conn = _get_db_connection(group_id, cfg)
-            if conn:
-                conn.close()
-                return True
-            return False
-        except Exception as e:
-            logger.error(f"数据库连接测试失败: {e}")
-            return False
-
-    @filter.command("签到", alias={"打卡"})
+    @filter.command("打卡", alias={"打卡"})
     async def checkin(self, event: AstrMessageEvent):
-        """每日签到"""
         try:
             user_id = event.get_sender_id()
             group_id = self._get_group_id(event)
@@ -650,14 +608,14 @@ class DrawCheckinPlugin(Star):
             cfg = self._curr_cfg()
             is_allowed, time_error_msg = _is_checkin_time_allowed(cfg)
             if not is_allowed:
-                yield event.plain_result(f"❌ 签到失败：{time_error_msg}")
+                yield event.plain_result(f"❌ 打卡失败：{time_error_msg}")
                 return
             
             # 检查绑定
             game_account = _get_user_game_account(self.bind_data, user_id)
             if not game_account:
                 yield event.plain_result(
-                    "❌ 签到失败：您尚未绑定游戏账号！\n"
+                    "❌ 打卡失败：您尚未绑定游戏账号！\n"
                     "请先使用命令：/绑定游戏账号 [你的游戏账号]\n"
                     "例如：/绑定游戏账号 mygame123"
                 )
@@ -667,27 +625,21 @@ class DrawCheckinPlugin(Star):
             today = _today()
 
             if info.get("last_checkin") == today.isoformat():
-                yield event.plain_result("今日已签到，请勿重复~")
+                yield event.plain_result("今日已打卡，请勿重复~")
                 return
 
             # 检查游戏账号
             account_info = _get_game_account_info(group_id, cfg, game_account)
             if not account_info:
-                yield event.plain_result("❌ 签到失败：游戏账号不存在，请检查账号是否正确或联系管理员")
+                yield event.plain_result("❌ 打卡失败：游戏账号不存在，请检查账号是否正确或联系管理员")
                 return
 
-            # 更新连续签到天数
+            # 更新连续打卡天数
             _update_consecutive_days(info, today)
 
             # 发放抽奖机会
             base_chances = int(cfg.get("base_lottery_chances", 1))
-            consecutive_days = info.get("consecutive_days", 0)
-            consecutive_bonus = 0
-            
-            # 每连续签到7天额外获得1次机会，最多3次
-            if consecutive_days >= 7:
-                consecutive_bonus = min((consecutive_days // 7), 3)
-            
+            consecutive_bonus = min(info.get("consecutive_days", 0) // 7, 3)  # 每7天多1次，最多3次
             total_chances = base_chances + consecutive_bonus
             
             info["lottery_chances"] = info.get("lottery_chances", 0) + total_chances
@@ -702,28 +654,25 @@ class DrawCheckinPlugin(Star):
             
             if use_emoji:
                 lines = [
-                    "✅ 签到成功",
+                    "✅ 打卡成功",
                     separator,
-                    f"📅 累计签到：{info['total_days']}天",
-                    f"🔥 连续签到：{consecutive_days}天",
+                    f"📅 累计打卡：{info['total_days']}天",
+                    f"🔥 连续打卡：{info.get('consecutive_days', 0)}天",
                     f"🎯 获得抽奖机会：{total_chances}次",
                     f"💰 剩余抽奖机会：{info['lottery_chances']}次"
                 ]
             else:
                 lines = [
-                    "✅ 签到成功",
+                    "✅ 打卡成功",
                     separator,
-                    f"累计签到：{info['total_days']}天",
-                    f"连续签到：{consecutive_days}天",
+                    f"累计打卡：{info['total_days']}天",
+                    f"连续打卡：{info.get('consecutive_days', 0)}天",
                     f"获得抽奖机会：{total_chances}次",
                     f"剩余抽奖机会：{info['lottery_chances']}次"
                 ]
                 
             if consecutive_bonus > 0:
-                if use_emoji:
-                    lines.append(f"🎊 连续签到奖励：额外{consecutive_bonus}次抽奖机会")
-                else:
-                    lines.append(f"连续签到奖励：额外{consecutive_bonus}次抽奖机会")
+                lines.append(f"🎊 连续打卡奖励：额外{consecutive_bonus}次抽奖机会")
             
             signature = _get_random_signature(cfg)
             lines.append(separator)
@@ -737,8 +686,8 @@ class DrawCheckinPlugin(Star):
             yield event.chain_result([at, Comp.Plain("\n" + body)])
             
         except Exception as e:
-            logger.error(f"签到失败: {e}")
-            yield event.plain_result("❌ 签到出现异常，请稍后再试")
+            logger.error(f"打卡失败: {e}")
+            yield event.plain_result("❌ 打卡出现异常，请稍后再试")
 
     @filter.command("抽奖")
     async def lottery(self, event: AstrMessageEvent, 次数: str = "1"):
@@ -750,11 +699,8 @@ class DrawCheckinPlugin(Star):
             # 解析抽奖次数
             try:
                 times = int(次数)
-                if times <= 0:
-                    yield event.plain_result("❌ 抽奖次数必须大于0")
-                    return
-                if times > 10:
-                    yield event.plain_result("❌ 单次最多抽奖10次")
+                if times <= 0 or times > 10:
+                    yield event.plain_result("❌ 抽奖次数必须在1-10次之间")
                     return
             except ValueError:
                 yield event.plain_result("❌ 请输入有效的抽奖次数，例如：/抽奖 3")
@@ -783,57 +729,28 @@ class DrawCheckinPlugin(Star):
             # 执行抽奖
             results = []
             extra_chances_total = 0
-            multiplier_active = False
-            multiplier_value = 1.0
+            multiplier = 1.0
             
             for i in range(times):
                 result, message, extra_chances = _perform_lottery(group_id, cfg, user_id, game_account)
-                if not result and not message:
-                    yield event.plain_result("❌ 抽奖失败，请稍后重试")
+                if not result:
+                    yield event.plain_result(message)
                     return
                 
                 # 处理特殊效果
-                result_type = result.get("type", "")
-                
-                if result_type == "multiplier":
-                    multiplier_active = True
-                    multiplier_value = result.get("multiplier", 2.0)
-                    # 记录特殊奖励但不计入消耗
-                    if message:
-                        results.append((result, message))
+                if result.get("type") == "multiplier":
+                    multiplier = result.get("multiplier", 2.0)
+                    # 特殊奖励不计入消耗
                     continue
-                elif result_type == "extra_chance":
+                elif result.get("type") == "extra_chance":
                     extra_chances_total += result.get("extra_chances", 1)
-                    # 记录特殊奖励但不计入消耗
-                    if message:
-                        results.append((result, message))
+                    # 特殊奖励不计入消耗
                     continue
-                
-                # 应用倍数效果
-                if multiplier_active:
-                    if result_type == "points":
-                        original_amount = result.get("actual_amount", 0)
-                        multiplied_amount = int(original_amount * multiplier_value)
-                        if _update_game_account_assets(group_id, cfg, game_account, 
-                                                      points_change=(multiplied_amount - original_amount)):
-                            result["actual_amount"] = multiplied_amount
-                            message = f"🎉 恭喜！获得 {multiplied_amount} 积分（{multiplier_value}倍奖励）"
-                    elif result_type == "ingots":
-                        original_amount = result.get("actual_amount", 0)
-                        multiplied_amount = int(original_amount * multiplier_value)
-                        if _update_game_account_assets(group_id, cfg, game_account,
-                                                      ingots_change=(multiplied_amount - original_amount)):
-                            result["actual_amount"] = multiplied_amount
-                            message = f"🎉 恭喜！获得 {multiplied_amount} 元宝（{multiplier_value}倍奖励）"
-                    multiplier_active = False
                 
                 results.append((result, message))
             
-            # 计算实际消耗的机会（不包括特殊奖励）
-            actual_used = len([r for r, _ in results if r.get("type") not in ["multiplier", "extra_chance"]])
-            
-            # 扣除抽奖机会
-            info["lottery_chances"] = available_chances - actual_used
+            # 扣除抽奖机会（只扣除实际抽奖次数，不包括特殊奖励）
+            info["lottery_chances"] = available_chances - len(results)
             
             # 添加额外机会
             if extra_chances_total > 0:
@@ -842,29 +759,13 @@ class DrawCheckinPlugin(Star):
             # 记录抽奖历史
             lottery_history = info.get("lottery_history", [])
             for result, _ in results:
-                if result.get("type") in ["points", "ingots", "item"]:
-                    lottery_history.append({
-                        "item": result.get("name"),
-                        "type": result.get("type"),
-                        "amount": result.get("actual_amount", 1),
-                        "timestamp": result.get("timestamp")
-                    })
-            # 只保留最近50条记录
-            info["lottery_history"] = lottery_history[-50:]
-            
-            # 处理道具物品
-            item_results = [r for r, _ in results if r.get("type") == "item"]
-            if item_results:
-                pending_items = info.get("pending_items", [])
-                for result in item_results:
-                    pending_items.append({
-                        "item": result.get("name"),
-                        "amount": result.get("actual_amount", 1),
-                        "timestamp": result.get("timestamp"),
-                        "item_code": result.get("item_code", ""),
-                        "description": result.get("description", "")
-                    })
-                info["pending_items"] = pending_items
+                lottery_history.append({
+                    "item": result.get("name"),
+                    "type": result.get("type"),
+                    "amount": result.get("actual_amount", 1),
+                    "timestamp": result.get("timestamp")
+                })
+            info["lottery_history"] = lottery_history[-50:]  # 只保留最近50条
             
             # 保存数据
             _save_data(self.data)
@@ -875,30 +776,25 @@ class DrawCheckinPlugin(Star):
             else:
                 lines = ["抽奖结果", separator]
             
-            if len(results) == 0:
-                lines.append("⚠️ 本次抽奖未获得任何奖励")
-            else:
-                for idx, (result, message) in enumerate(results, 1):
-                    if len(results) > 1:
-                        lines.append(f"第{idx}次：{message}")
-                    else:
-                        lines.append(message)
+            for idx, (result, message) in enumerate(results, 1):
+                if len(results) > 1:
+                    lines.append(f"第{idx}次：{message}")
+                else:
+                    lines.append(message)
             
             if extra_chances_total > 0:
                 lines.append(f"🎊 获得额外抽奖机会：{extra_chances_total}次")
             
             lines.append(separator)
-            lines.append(f"消耗抽奖机会：{actual_used}次")
             lines.append(f"剩余抽奖机会：{info['lottery_chances']}次")
             
             # 如果有物品需要兑换
+            item_results = [r for r, _ in results if r.get("type") == "item"]
             if item_results:
                 lines.append(separator)
                 lines.append("📝 需要兑换的物品：")
                 for result in item_results:
-                    item_name = result.get("name")
-                    amount = result.get("actual_amount", 1)
-                    lines.append(f"- {item_name} × {amount}")
+                    lines.append(f"- {result.get('name')} × {result.get('actual_amount', 1)}")
                 lines.append("💡 请私聊GM兑换物品")
             
             signature = _get_random_signature(cfg)
@@ -1015,7 +911,7 @@ class DrawCheckinPlugin(Star):
                 else:
                     content_lines = [
                         f"QQ用户：{user_id}",
-                        f"游戏账号：{account}",
+                        f"游戏账号：{账号}",
                     ]
                 
                 if game_account_info:
@@ -1033,9 +929,9 @@ class DrawCheckinPlugin(Star):
                         ])
                 else:
                     if use_emoji:
-                        content_lines.append(f"❌ 绑定状态：游戏账号不存在或数据库连接失败")
+                        content_lines.append(f"❌ 绑定状态：游戏账号不存在")
                     else:
-                        content_lines.append(f"绑定状态：游戏账号不存在或数据库连接失败")
+                        content_lines.append(f"绑定状态：游戏账号不存在")
                     
                 message = _format_message(cfg, "我的绑定信息", content_lines)
                 yield event.plain_result(message)
@@ -1063,24 +959,21 @@ class DrawCheckinPlugin(Star):
                 lines = [
                     f"👤 用户：{info.get('username', user_id)}",
                     f"🎯 剩余抽奖机会：{chances}次",
-                    f"📅 累计签到：{total_days}天",
-                    f"🔥 连续签到：{consecutive_days}天",
+                    f"📅 累计打卡：{total_days}天",
+                    f"🔥 连续打卡：{consecutive_days}天",
                 ]
             else:
                 lines = [
                     f"用户：{info.get('username', user_id)}",
                     f"剩余抽奖机会：{chances}次",
-                    f"累计签到：{total_days}天",
-                    f"连续签到：{consecutive_days}天",
+                    f"累计打卡：{total_days}天",
+                    f"连续打卡：{consecutive_days}天",
                 ]
             
-            # 显示连续签到奖励信息
+            # 显示连续打卡奖励信息
             if consecutive_days >= 7:
                 bonus = min(consecutive_days // 7, 3)
-                if use_emoji:
-                    lines.append(f"🎊 连续签到奖励：额外{bonus}次抽奖机会")
-                else:
-                    lines.append(f"连续签到奖励：额外{bonus}次抽奖机会")
+                lines.append(f"🎊 连续打卡奖励：额外{bonus}次抽奖机会")
             
             message = _format_message(cfg, "抽奖机会信息", lines)
             yield event.plain_result(message)
@@ -1132,51 +1025,8 @@ class DrawCheckinPlugin(Star):
             logger.error(f"查询抽奖历史失败: {e}")
             yield event.plain_result("❌ 查询失败，请稍后再试")
 
-    @filter.command("我的道具")
-    async def my_items(self, event: AstrMessageEvent):
-        """查看待兑换的道具"""
-        try:
-            _, info = self._get_user_bucket(event)
-            user_id = event.get_sender_id()
-            cfg = self._curr_cfg()
-            use_emoji = cfg.get("use_emoji", True)
-            
-            pending_items = info.get("pending_items", [])
-            
-            if not pending_items:
-                yield event.plain_result("📭 暂无待兑换道具")
-                return
-            
-            if use_emoji:
-                lines = [f"📦 {info.get('username', user_id)}的待兑换道具", "--------"]
-            else:
-                lines = [f"{info.get('username', user_id)}的待兑换道具", "--------"]
-            
-            # 按道具类型分组统计
-            item_counts = {}
-            for item in pending_items:
-                item_name = item.get("item", "未知道具")
-                amount = item.get("amount", 1)
-                if item_name in item_counts:
-                    item_counts[item_name] += amount
-                else:
-                    item_counts[item_name] = amount
-            
-            for item_name, total_amount in item_counts.items():
-                lines.append(f"{item_name} × {total_amount}")
-            
-            lines.append("--------")
-            lines.append("💡 请私聊GM兑换以上道具")
-            
-            yield event.plain_result("\n".join(lines))
-            
-        except Exception as e:
-            logger.error(f"查询我的道具失败: {e}")
-            yield event.plain_result("❌ 查询失败，请稍后再试")
-
-    @filter.command("签到查询", alias={"查询签到", "我的签到"})
+    @filter.command("打卡查询", alias={"查询打卡", "我的打卡"})
     async def query_assets(self, event: AstrMessageEvent):
-        """查询签到信息"""
         try:
             _, info = self._get_user_bucket(event)
             user_id = event.get_sender_id()
@@ -1190,15 +1040,15 @@ class DrawCheckinPlugin(Star):
             if use_emoji:
                 content_lines = [
                     f"👤 用户：{info.get('username', user_id)}",
-                    f"📅 累计签到：{info.get('total_days', 0)}天",
-                    f"🔥 连续签到：{info.get('consecutive_days', 0)}天",
+                    f"📅 累计打卡：{info.get('total_days', 0)}天",
+                    f"🔥 连续打卡：{info.get('consecutive_days', 0)}天",
                     f"🎯 剩余抽奖机会：{info.get('lottery_chances', 0)}次",
                 ]
             else:
                 content_lines = [
                     f"用户：{info.get('username', user_id)}",
-                    f"累计签到：{info.get('total_days', 0)}天",
-                    f"连续签到：{info.get('consecutive_days', 0)}天",
+                    f"累计打卡：{info.get('total_days', 0)}天",
+                    f"连续打卡：{info.get('consecutive_days', 0)}天",
                     f"剩余抽奖机会：{info.get('lottery_chances', 0)}次",
                 ]
             
@@ -1215,257 +1065,117 @@ class DrawCheckinPlugin(Star):
                     ])
             else:
                 if use_emoji:
-                    content_lines.append(f"🎮 游戏账号：未绑定或数据库未配置")
+                    content_lines.append(f"🎮 游戏账号：未绑定")
                 else:
-                    content_lines.append(f"游戏账号：未绑定或数据库未配置")
+                    content_lines.append(f"游戏账号：未绑定")
         
-            message = _format_message(cfg, "签到信息", content_lines)
+            message = _format_message(cfg, "打卡信息", content_lines)
             yield event.plain_result(message)
         except Exception as e:
             logger.error(f"查询资产失败: {e}")
             yield event.plain_result("❌ 查询失败，请稍后再试")
 
-    @filter.command("群数据库状态")
-    async def group_db_status(self, event: AstrMessageEvent):
-        """查看群组数据库配置状态"""
+    @filter.command("群组配置")
+    async def group_config(self, event: AstrMessageEvent):
+        """查看或设置群组配置（管理员专用）"""
         try:
+            if not self._is_group_admin(event):
+                yield event.plain_result("❌ 仅群管理员可执行此操作")
+                return
+                
             group_id = self._get_group_id(event)
+            group_configs = _load_group_config()
+            
             cfg = self._curr_cfg()
-            
-            # 加载群组配置
-            group_configs = _load_group_configs(cfg)
-            
             use_emoji = cfg.get("use_emoji", True)
             
             if use_emoji:
-                lines = [f"📊 群组数据库状态（群ID：{group_id}）", "--------"]
+                lines = [f"⚙️ 群组配置（群ID：{group_id}）", "--------"]
             else:
-                lines = [f"群组数据库状态（群ID：{group_id}）", "--------"]
+                lines = [f"群组配置（群ID：{group_id}）", "--------"]
             
-            if group_id in group_configs and "db_config" in group_configs[group_id]:
-                db_cfg = group_configs[group_id]["db_config"]
-                lines.append("✅ 已配置独立数据库")
-                lines.append(f"服务器：{db_cfg.get('db_server')}")
-                lines.append(f"端口：{db_cfg.get('db_port')}")
-                lines.append(f"数据库：{db_cfg.get('db_database')}")
-                lines.append(f"用户名：{db_cfg.get('db_username')}")
-                
-                last_updated = db_cfg.get("last_updated", "")
-                if last_updated:
-                    try:
-                        dt = datetime.datetime.fromisoformat(last_updated)
-                        lines.append(f"最后更新：{dt.strftime('%Y-%m-%d %H:%M')}")
-                    except:
-                        pass
-                
-                # 测试连接
-                lines.append("--------")
-                if self._test_database_connection(group_id, cfg):
-                    lines.append("✅ 数据库连接：正常")
+            if group_id in group_configs:
+                group_cfg = group_configs[group_id]
+                if "db_config" in group_cfg:
+                    db_cfg = group_cfg["db_config"]
+                    lines.append("数据库配置（自定义）：")
+                    lines.append(f"- 服务器：{db_cfg.get('db_server', '默认')}")
+                    lines.append(f"- 数据库：{db_cfg.get('db_database', '默认')}")
                 else:
-                    lines.append("❌ 数据库连接：失败")
+                    lines.append("数据库配置：使用全局配置")
             else:
-                lines.append("ℹ️ 使用默认数据库配置")
-                lines.append("💡 请管理员使用 /设置群数据库 命令配置独立数据库")
+                lines.append("数据库配置：使用全局配置")
             
             lines.append("--------")
-            lines.append("📝 配置命令：/设置群数据库 [服务器] [端口] [数据库名] [用户名] [密码]")
+            lines.append("💡 使用命令修改配置：")
+            lines.append("/设置群组数据库 [服务器] [数据库] [用户名] [密码]")
             
             yield event.plain_result("\n".join(lines))
                 
         except Exception as e:
-            logger.error(f"查询群数据库状态失败: {e}")
+            logger.error(f"查询群组配置失败: {e}")
             yield event.plain_result("❌ 查询失败，请稍后再试")
 
-    @filter.command("设置群数据库")
-    async def set_group_database(self, event: AstrMessageEvent):
-        """设置群组数据库配置（管理员专用）"""
+    @filter.command("设置群组数据库")
+    async def set_group_database(self, event: AstrMessageEvent, 服务器: str = "", 数据库: str = "", 用户名: str = "", 密码: str = ""):
+        """设置群组独立的数据库配置（管理员专用）"""
         try:
             if not self._is_group_admin(event):
                 yield event.plain_result("❌ 仅群管理员可执行此操作")
                 return
             
-            group_id = self._get_group_id(event)
-            cfg = self._curr_cfg()
-            
-            # 获取当前消息文本
-            raw_text = event.get_plain_text()
-            parts = raw_text.split()
-            
-            if len(parts) < 6:
+            if not 服务器 or not 数据库 or not 用户名 or not 密码:
                 yield event.plain_result(
-                    "❌ 请提供完整的数据库配置信息\n"
-                    "格式：/设置群数据库 [服务器] [端口] [数据库名] [用户名] [密码]\n"
-                    "示例：/设置群数据库 192.168.1.100 1433 MuOnline sa mypassword\n"
-                    "💡 注意：密码不能包含空格"
+                    "❌ 请提供完整的数据库配置\n"
+                    "格式：/设置群组数据库 [服务器] [数据库] [用户名] [密码]\n"
+                    "示例：/设置群组数据库 192.168.1.100 MuOnline sa password123"
                 )
                 return
             
-            # 解析参数
-            server = parts[1]
-            port = parts[2]
-            database = parts[3]
-            username = parts[4]
-            password = parts[5]
-            
-            # 验证端口
-            if not port.isdigit():
-                yield event.plain_result("❌ 端口必须是数字")
-                return
-            
-            # 加载现有配置
-            group_configs = _load_group_configs(cfg)
+            group_id = self._get_group_id(event)
+            group_configs = _load_group_config()
             
             if group_id not in group_configs:
                 group_configs[group_id] = {}
             
-            # 保存数据库配置
             group_configs[group_id]["db_config"] = {
-                "db_server": server,
-                "db_port": port,
-                "db_database": database,
-                "db_username": username,
-                "db_password": password,
-                "db_driver": "FreeTDS",
-                "last_updated": datetime.datetime.now().isoformat()
+                "db_server": 服务器,
+                "db_database": 数据库,
+                "db_username": 用户名,
+                "db_password": 密码,
+                "db_port": "1433",
+                "db_driver": "FreeTDS"
             }
             
-            _save_group_configs(cfg, group_configs)
+            _save_group_config(group_configs)
             
-            # 测试连接
-            test_result = self._test_database_connection(group_id, cfg)
-            
-            if test_result:
-                yield event.plain_result(
-                    f"✅ 群组数据库配置已保存并测试成功！\n"
-                    f"服务器：{server}:{port}\n"
-                    f"数据库：{database}\n"
-                    f"用户名：{username}\n"
-                    "💡 配置已生效，现在可以正常使用签到功能"
-                )
-            else:
-                yield event.plain_result(
-                    f"⚠️ 群组数据库配置已保存，但连接测试失败！\n"
-                    f"服务器：{server}:{port}\n"
-                    f"数据库：{database}\n"
-                    f"用户名：{username}\n"
-                    "❌ 请检查配置信息，签到功能可能无法正常工作"
-                )
+            yield event.plain_result(f"✅ 群组数据库配置已更新\n服务器：{服务器}\n数据库：{数据库}")
                 
         except Exception as e:
-            logger.error(f"设置群数据库失败: {e}")
+            logger.error(f"设置群组数据库失败: {e}")
             yield event.plain_result("❌ 设置失败，请稍后再试")
 
-    @filter.command("删除群数据库配置")
-    async def remove_group_db_config(self, event: AstrMessageEvent):
-        """删除群组数据库配置，恢复使用默认配置（管理员专用）"""
+    @filter.command("重置群组配置")
+    async def reset_group_config(self, event: AstrMessageEvent):
+        """重置群组配置为全局配置（管理员专用）"""
         try:
             if not self._is_group_admin(event):
                 yield event.plain_result("❌ 仅群管理员可执行此操作")
                 return
             
             group_id = self._get_group_id(event)
-            cfg = self._curr_cfg()
+            group_configs = _load_group_config()
             
-            group_configs = _load_group_configs(cfg)
-            
-            if group_id in group_configs and "db_config" in group_configs[group_id]:
-                del group_configs[group_id]["db_config"]
-                
-                # 如果配置为空，删除整个群组条目
-                if not group_configs[group_id]:
-                    del group_configs[group_id]
-                
-                _save_group_configs(cfg, group_configs)
-                yield event.plain_result("✅ 群组数据库配置已删除，将使用默认配置")
+            if group_id in group_configs:
+                del group_configs[group_id]
+                _save_group_config(group_configs)
+                yield event.plain_result("✅ 群组配置已重置，将使用全局配置")
             else:
-                yield event.plain_result("✅ 当前已使用默认配置，无需删除")
+                yield event.plain_result("✅ 当前已使用全局配置")
                 
         except Exception as e:
-            logger.error(f"删除群数据库配置失败: {e}")
-            yield event.plain_result("❌ 删除失败，请稍后再试")
-
-    @filter.command("签到重置")
-    async def reset_self(self, event: AstrMessageEvent):
-        """重置自己的签到数据"""
-        try:
-            user_id = event.get_sender_id()
-            bucket, info = self._get_user_bucket(event)
-            
-            # 重置用户数据
-            username = info.get("username", user_id)
-            bucket[user_id] = _default_user(user_id, username)
-            _save_data(self.data)
-            
-            yield event.plain_result(f"✅ 已重置您的签到数据")
-                
-        except Exception as e:
-            logger.error(f"重置签到数据失败: {e}")
+            logger.error(f"重置群组配置失败: {e}")
             yield event.plain_result("❌ 重置失败，请稍后再试")
-
-    @filter.command("管理员重置")
-    async def admin_reset(self, event: AstrMessageEvent):
-        """管理员重置指定用户数据"""
-        try:
-            if not self._is_group_admin(event):
-                yield event.plain_result("❌ 仅群管理员可执行此操作")
-                return
-            
-            # 尝试获取目标用户ID
-            target_uid = None
-            
-            # 检查@消息
-            try:
-                for comp in event.get_messages():
-                    if isinstance(comp, Comp.At) and comp.qq:
-                        target_uid = str(comp.qq)
-                        break
-            except:
-                pass
-            
-            # 如果没有@，尝试从文本中提取
-            if not target_uid:
-                raw_text = event.get_plain_text()
-                parts = raw_text.split()
-                if len(parts) > 1:
-                    # 尝试提取数字作为QQ号
-                    for part in parts[1:]:
-                        if part.isdigit() and len(part) >= 5:
-                            target_uid = part
-                            break
-            
-            if not target_uid:
-                yield event.plain_result(
-                    "❌ 请指定要重置的用户\n"
-                    "格式：/管理员重置 @用户\n"
-                    "或：/管理员重置 [QQ号]"
-                )
-                return
-            
-            bucket = self._get_group_ctx_bucket(event)
-            
-            if target_uid in bucket:
-                username = bucket[target_uid].get("username", target_uid)
-                bucket[target_uid] = _default_user(target_uid, username)
-                _save_data(self.data)
-                yield event.plain_result(f"✅ 已重置用户 {username} 的签到数据")
-            else:
-                yield event.plain_result("❌ 未找到该用户的签到数据")
-                
-        except Exception as e:
-            logger.error(f"管理员重置失败: {e}")
-            yield event.plain_result("❌ 重置失败，请稍后再试")
-
-    def _get_group_ctx_bucket(self, event: AstrMessageEvent) -> Dict[str, Any]:
-        """获取当前群维度的bucket"""
-        try:
-            platform = event.get_platform_name()
-            gid = self._get_group_id(event)
-            ctx_id = f"{platform}:G:{gid}"
-            return self.data.setdefault(ctx_id, {})
-        except Exception:
-            return self.data.setdefault("default", {})
 
     async def terminate(self):
-        """插件终止时执行"""
         pass
